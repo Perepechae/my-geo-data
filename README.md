@@ -1,10 +1,12 @@
 # My custom geo data for Xray
 
 This repository provides:
-- `geosite.dat` with custom categories: `ru-all`, `torrent`, `ads`
-- `geoip.dat` with `ru` category (from runetfreedom)
+
+- [geoip.dat](https://raw.githubusercontent.com/Perepechae/my-geo-data/release/geoip.dat) – IP-адреса РФ (категория `geoip:ru`)
+- [geosite.dat](https://raw.githubusercontent.com/Perepechae/my-geo-data/release/geosite.dat) – домены РФ, реклама, торренты (категории `ru-all`, `ads`, `torrent`)
 
 ## Usage
+
 Place both files in your Xray directory and add routing rules:
 
 ```json
