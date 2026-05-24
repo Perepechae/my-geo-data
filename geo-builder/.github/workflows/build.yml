@@ -2,8 +2,8 @@ name: Build and Release Custom Geo Data
 
 on:
   schedule:
-    - cron: '30 */6 * * *'   # каждые 6 часов
-  workflow_dispatch:          # кнопка для ручного запуска
+    - cron: '30 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -27,15 +27,16 @@ jobs:
           rm -rf domain-list-community/data/*
           cp -r data/* domain-list-community/data/
 
-      - name: Build geosite.dat
+      - name: Build geosite.dat with custom categories
         run: |
           cd domain-list-community
-          go run ./ -outputname geosite.dat ru-all torrent ads
+          go run ./ -outputname geosite.dat ru-all ads torrent
           cd ..
           cp domain-list-community/geosite.dat .
 
       - name: Download geoip.dat from runetfreedom
-        run: wget -O geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
+        run: |
+          wget -O geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -44,8 +45,8 @@ jobs:
           name: Daily Build ${{ github.run_number }}
           body: |
             Автоматическая сборка от $(date +'%Y-%m-%d %H:%M:%S').
-            geosite.dat собран из кастомных списков (ru-all, torrent, ads).
-            geoip.dat взят из runetfreedom/russia-v2ray-rules-dat.
+            - **geosite.dat** собран из списков: ru-all, ads, torrent.
+            - **geoip.dat** взят из runetfreedom (содержит geoip:ru и др.).
           files: |
             geoip.dat
             geosite.dat
