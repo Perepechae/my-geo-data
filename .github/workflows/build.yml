@@ -52,3 +52,14 @@ jobs:
             geosite.dat
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push geoip.dat and geosite.dat to release branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan release
+          git rm -rf .
+          cp geoip.dat geosite.dat .
+          git add geoip.dat geosite.dat
+          git commit -m "Update geoip.dat and geosite.dat"
+          git push --force origin release
