@@ -1,0 +1,6 @@
+*.tmp
+*.log
+*.exe
+*.dat
+!geoip.dat
+!geosite.dat
