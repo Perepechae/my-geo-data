@@ -30,7 +30,7 @@ jobs:
       - name: Build geosite.dat
         run: |
           cd domain-list-community
-          go run ./ -outputname geosite.dat ads torrent
+          go run ./ -outputname geosite.dat ru-all ads torrent
           cd ..
           cp domain-list-community/geosite.dat .
 
