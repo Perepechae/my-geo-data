@@ -19,13 +19,14 @@ jobs:
         with:
           go-version: '1.23'
 
+      # ========== СБОРКА geosite.dat ==========
       - name: Clone v2fly/domain-list-community
         run: git clone https://github.com/v2fly/domain-list-community.git
 
-      - name: Copy custom data
+      - name: Copy custom data for geosite
         run: |
           rm -rf domain-list-community/data/*
-          cp -r data/* domain-list-community/data/
+          cp data/ru-all data/ads data/torrent domain-list-community/data/
 
       - name: Build geosite.dat
         run: |
@@ -34,9 +35,47 @@ jobs:
           cd ..
           cp domain-list-community/geosite.dat .
 
-      - name: Download geoip.dat
+      # ========== СБОРКА geoip.dat ==========
+      - name: Download aggregated Russian IP lists (IPv4 + IPv6)
         run: |
-          wget -O geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
+          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv4-aggregated.list -o russian-ipv4.txt
+          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv6-aggregated.list -o russian-ipv6.txt
+
+      - name: Convert custom IPs and ranges to CIDR
+        run: |
+          python3 convert_ips.py
+
+      - name: Merge all lists and create final RU file
+        run: |
+          cat russian-ipv4.txt russian-ipv6.txt custom-converted.txt | sort -u > ru-final.txt
+
+      - name: Clone v2fly/geoip
+        run: git clone https://github.com/v2fly/geoip.git
+
+      - name: Build geoip.dat with all RU IPs (IPv4 + IPv6)
+        run: |
+          cd geoip
+          mkdir -p data
+          cp ../ru-final.txt data/RU
+          go run main.go -country RU -output geoip.dat
+          cd ..
+          cp geoip/geoip.dat .
+
+      # ========== ПУБЛИКАЦИЯ ==========
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: daily-${{ github.run_number }}
+          name: Daily Build ${{ github.run_number }}
+          body: |
+            Автоматическая сборка.
+            - geosite.dat: собран из ru-all, ads, torrent
+            - geoip.dat: собран из российских CIDR + ваши кастомные IP
+          files: |
+            geoip.dat
+            geosite.dat
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push geoip.dat and geosite.dat to release branch
         run: |

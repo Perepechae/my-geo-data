@@ -26,7 +26,7 @@ def range_to_cidr(start_ip, end_ip):
             return []
 
 def main():
-    input_file = "data/custom-ips.txt"
+    input_file = "custom-ips.txt"
     output_file = "custom-converted.txt"
     try:
         with open(input_file, 'r') as f:
