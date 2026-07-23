@@ -38,12 +38,14 @@ jobs:
       # ========== СБОРКА geoip.dat (кастомный) ==========
       - name: Clone and build geoip CLI from Loyalsoldier
         run: |
+          # Удаляем старую папку, если она осталась
+          rm -rf geoip
           git clone https://github.com/Loyalsoldier/geoip.git
           cd geoip
-          go build -v -o geoip ./   # <--- правильная команда
+          go build -v -o geoip ./
           cd ..
-          cp geoip/geoip .
-          chmod +x geoip
+          cp geoip/geoip geoip-cli
+          chmod +x geoip-cli
 
       - name: Convert custom IPs and ranges to CIDR (bash)
         run: |
@@ -97,9 +99,9 @@ jobs:
           }
           EOF
 
-      - name: Build geoip.dat with RU + custom IPs
+      - name: Build geoip.dat
         run: |
-          ./geoip -config config.json -country RU
+          ./geoip-cli -config config.json -country RU
 
       # ========== ПУБЛИКАЦИЯ ==========
       - name: Create Release and Upload Assets
