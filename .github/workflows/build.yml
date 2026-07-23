@@ -23,7 +23,7 @@ jobs:
       - name: Clone v2fly/domain-list-community
         run: git clone https://github.com/v2fly/domain-list-community.git
 
-      - name: Copy custom data for geosite (only required lists)
+      - name: Copy custom data for geosite
         run: |
           rm -rf domain-list-community/data/*
           cp data/ru-all data/ads data/torrent domain-list-community/data/
@@ -38,31 +38,52 @@ jobs:
       # ========== СБОРКА geoip.dat ==========
       - name: Download geoip-builder
         run: |
-          # Получаем URL последнего релиза для Linux amd64
-          LATEST_URL=$(curl -s https://api.github.com/repos/Loyalsoldier/geoip-builder/releases/latest | grep -oP '"browser_download_url":\s*"\K[^"]*linux_amd64[^"]*')
-          if [ -z "$LATEST_URL" ]; then
-            echo "Не удалось получить ссылку через API, использую стандартную"
-            LATEST_URL="https://github.com/Loyalsoldier/geoip-builder/releases/latest/download/geoip-builder_linux_amd64"
-          fi
-          echo "Скачиваю: $LATEST_URL"
-          wget -O geoip-builder "$LATEST_URL"
+          wget -O geoip-builder https://github.com/Loyalsoldier/geoip-builder/releases/latest/download/geoip-builder_linux_amd64
           chmod +x geoip-builder
 
-      - name: Prepare config.yaml for geoip-builder
+      - name: Convert custom IPs and ranges to CIDR (bash)
+        run: |
+          > custom-cidr.txt
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            if [[ "$line" == *"/"* ]]; then
+              echo "$line" >> custom-cidr.txt
+            elif [[ "$line" == *"-"* ]]; then
+              start=$(echo "$line" | cut -d- -f1)
+              end=$(echo "$line" | cut -d- -f2)
+              if [[ "$start" =~ \.0$ ]] && [[ "$end" =~ \.255$ ]]; then
+                prefix=$(echo "$start" | sed 's/\.[0-9]*$//')
+                echo "${prefix}.0/24" >> custom-cidr.txt
+              else
+                echo "WARNING: Unsupported range $line – please specify CIDR manually" >&2
+              fi
+            else
+              if [[ "$line" == *":"* ]]; then
+                echo "$line/128" >> custom-cidr.txt
+              else
+                echo "$line/32" >> custom-cidr.txt
+              fi
+            fi
+          done < custom-ips.txt
+
+      - name: Remove duplicates from custom-cidr.txt (optional)
+        run: sort -u custom-cidr.txt -o custom-cidr.txt
+
+      - name: Create config.yaml for geoip-builder
         run: |
           cat > config.yaml << EOF
           input:
             - type: maxmind
               url: https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&suffix=zip
-              license_key: ""  # без ключа работает, но можно указать свой
+              license_key: ""
             - type: file
-              path: custom-ips.txt   # ваш файл с кастомными IP
+              path: custom-cidr.txt
           output:
             - type: v2ray
               path: geoip.dat
           EOF
 
-      - name: Build geoip.dat with custom IPs
+      - name: Build geoip.dat
         run: |
           ./geoip-builder -config config.yaml -country RU
 
@@ -75,7 +96,7 @@ jobs:
           body: |
             Автоматическая сборка.
             - geosite.dat: собран из ru-all, ads, torrent
-            - geoip.dat: собран из MaxMind + ваши кастомные IP
+            - geoip.dat: собран из MaxMind + ваши кастомные IP (дубли удалены)
           files: |
             geoip.dat
             geosite.dat
