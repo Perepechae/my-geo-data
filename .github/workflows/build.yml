@@ -38,7 +38,14 @@ jobs:
       # ========== СБОРКА geoip.dat ==========
       - name: Download geoip-builder
         run: |
-          wget -O geoip-builder https://github.com/Loyalsoldier/geoip-builder/releases/latest/download/geoip-builder-linux-amd64
+          # Получаем URL последнего релиза для Linux amd64
+          LATEST_URL=$(curl -s https://api.github.com/repos/Loyalsoldier/geoip-builder/releases/latest | grep -oP '"browser_download_url":\s*"\K[^"]*linux_amd64[^"]*')
+          if [ -z "$LATEST_URL" ]; then
+            echo "Не удалось получить ссылку через API, использую стандартную"
+            LATEST_URL="https://github.com/Loyalsoldier/geoip-builder/releases/latest/download/geoip-builder_linux_amd64"
+          fi
+          echo "Скачиваю: $LATEST_URL"
+          wget -O geoip-builder "$LATEST_URL"
           chmod +x geoip-builder
 
       - name: Prepare config.yaml for geoip-builder
