@@ -23,7 +23,7 @@ jobs:
       - name: Clone v2fly/domain-list-community
         run: git clone https://github.com/v2fly/domain-list-community.git
 
-      - name: Copy custom data for geosite
+      - name: Copy custom data for geosite (only required lists)
         run: |
           rm -rf domain-list-community/data/*
           cp data/ru-all data/ads data/torrent domain-list-community/data/
@@ -36,30 +36,28 @@ jobs:
           cp domain-list-community/geosite.dat .
 
       # ========== СБОРКА geoip.dat ==========
-      - name: Download aggregated Russian IP lists (IPv4 + IPv6)
+      - name: Download geoip-builder
         run: |
-          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv4-aggregated.list -o russian-ipv4.txt
-          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv6-aggregated.list -o russian-ipv6.txt
+          wget -O geoip-builder https://github.com/Loyalsoldier/geoip-builder/releases/latest/download/geoip-builder-linux-amd64
+          chmod +x geoip-builder
 
-      - name: Convert custom IPs and ranges to CIDR
+      - name: Prepare config.yaml for geoip-builder
         run: |
-          python3 convert_ips.py
+          cat > config.yaml << EOF
+          input:
+            - type: maxmind
+              url: https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&suffix=zip
+              license_key: ""  # без ключа работает, но можно указать свой
+            - type: file
+              path: custom-ips.txt   # ваш файл с кастомными IP
+          output:
+            - type: v2ray
+              path: geoip.dat
+          EOF
 
-      - name: Merge all lists and create final RU file
+      - name: Build geoip.dat with custom IPs
         run: |
-          cat russian-ipv4.txt russian-ipv6.txt custom-converted.txt | sort -u > ru-final.txt
-
-      - name: Clone v2fly/geoip
-        run: git clone https://github.com/v2fly/geoip.git
-
-      - name: Build geoip.dat with all RU IPs (IPv4 + IPv6)
-        run: |
-          cd geoip
-          mkdir -p data
-          cp ../ru-final.txt data/RU
-          go run main.go -country RU -output geoip.dat
-          cd ..
-          cp geoip/geoip.dat .
+          ./geoip-builder -config config.yaml -country RU
 
       # ========== ПУБЛИКАЦИЯ ==========
       - name: Create Release and Upload Assets
@@ -70,7 +68,7 @@ jobs:
           body: |
             Автоматическая сборка.
             - geosite.dat: собран из ru-all, ads, torrent
-            - geoip.dat: собран из российских CIDR + ваши кастомные IP
+            - geoip.dat: собран из MaxMind + ваши кастомные IP
           files: |
             geoip.dat
             geosite.dat
