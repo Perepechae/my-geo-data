@@ -40,7 +40,7 @@ jobs:
         run: |
           git clone https://github.com/Loyalsoldier/geoip.git
           cd geoip
-          go build -o geoip ./cmd/geoip
+          go build -v -o geoip ./   # <--- правильная команда
           cd ..
           cp geoip/geoip .
           chmod +x geoip
