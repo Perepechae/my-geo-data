@@ -35,54 +35,10 @@ jobs:
           cd ..
           cp domain-list-community/geosite.dat .
 
-      # ========== СБОРКА geoip.dat ==========
-      - name: Download aggregated Russian IP lists (IPv4 + IPv6)
+      # ========== ПОЛУЧЕНИЕ geoip.dat (готовый от runetfreedom) ==========
+      - name: Download geoip.dat from runetfreedom
         run: |
-          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv4-aggregated.list -o russian-ipv4.txt
-          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv6-aggregated.list -o russian-ipv6.txt
-
-      - name: Convert custom IPs and ranges to CIDR (bash)
-        run: |
-          > custom-cidr.txt
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            if [[ "$line" == *"/"* ]]; then
-              echo "$line" >> custom-cidr.txt
-            elif [[ "$line" == *"-"* ]]; then
-              start=$(echo "$line" | cut -d- -f1)
-              end=$(echo "$line" | cut -d- -f2)
-              if [[ "$start" =~ \.0$ ]] && [[ "$end" =~ \.255$ ]]; then
-                prefix=$(echo "$start" | sed 's/\.[0-9]*$//')
-                echo "${prefix}.0/24" >> custom-cidr.txt
-              else
-                echo "WARNING: Unsupported range $line – please specify CIDR manually" >&2
-              fi
-            else
-              if [[ "$line" == *":"* ]]; then
-                echo "$line/128" >> custom-cidr.txt
-              else
-                echo "$line/32" >> custom-cidr.txt
-              fi
-            fi
-          done < custom-ips.txt
-
-      - name: Merge all lists and create final RU file
-        run: |
-          cat russian-ipv4.txt russian-ipv6.txt custom-cidr.txt | sort -u > ru-final.txt
-
-      - name: Clone v2fly/geoip
-        run: |
-          rm -rf geoip
-          git clone https://github.com/v2fly/geoip.git
-
-      - name: Build geoip.dat
-        run: |
-          cd geoip
-          mkdir -p data
-          cp ../ru-final.txt data/RU
-          go run main.go
-          cd ..
-          cp geoip/geoip.dat .
+          wget -O geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
 
       # ========== ПУБЛИКАЦИЯ ==========
       - name: Create Release and Upload Assets
@@ -93,7 +49,7 @@ jobs:
           body: |
             Автоматическая сборка.
             - geosite.dat: собран из ru-all, ads, torrent
-            - geoip.dat: собран из российских сетей + ваши кастомные IP (дубли удалены)
+            - geoip.dat: взят из runetfreedom (актуальные российские IP)
           files: |
             geoip.dat
             geosite.dat
