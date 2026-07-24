@@ -38,7 +38,6 @@ jobs:
       # ========== СБОРКА geoip.dat (кастомный) ==========
       - name: Clone and build geoip CLI from Loyalsoldier
         run: |
-          # Удаляем старую папку, если она осталась
           rm -rf geoip
           git clone https://github.com/Loyalsoldier/geoip.git
           cd geoip
@@ -83,7 +82,8 @@ jobs:
               {
                 "type": "maxmind",
                 "url": "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&suffix=zip",
-                "license_key": ""
+                "license_key": "",
+                "country_filter": ["RU"]
               },
               {
                 "type": "file",
@@ -101,7 +101,7 @@ jobs:
 
       - name: Build geoip.dat
         run: |
-          ./geoip-cli -config config.json -country RU
+          ./geoip-cli generate -c config.json -o geoip.dat
 
       # ========== ПУБЛИКАЦИЯ ==========
       - name: Create Release and Upload Assets
