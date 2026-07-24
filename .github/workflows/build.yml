@@ -35,16 +35,11 @@ jobs:
           cd ..
           cp domain-list-community/geosite.dat .
 
-      # ========== СБОРКА geoip.dat (кастомный) ==========
-      - name: Clone and build geoip CLI from Loyalsoldier
+      # ========== СБОРКА geoip.dat ==========
+      - name: Download aggregated Russian IP lists (IPv4 + IPv6)
         run: |
-          rm -rf geoip
-          git clone https://github.com/Loyalsoldier/geoip.git
-          cd geoip
-          go build -v -o geoip ./
-          cd ..
-          cp geoip/geoip geoip-cli
-          chmod +x geoip-cli
+          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv4-aggregated.list -o russian-ipv4.txt
+          curl -s https://ipverse.net/ipblocks/data/countries/ru/ipv6-aggregated.list -o russian-ipv6.txt
 
       - name: Convert custom IPs and ranges to CIDR (bash)
         run: |
@@ -71,37 +66,23 @@ jobs:
             fi
           done < custom-ips.txt
 
-      - name: Remove duplicates from custom-cidr.txt
-        run: sort -u custom-cidr.txt -o custom-cidr.txt
-
-      - name: Create config.json for geoip
+      - name: Merge all lists and create final RU file
         run: |
-          cat > config.json << EOF
-          {
-            "input": [
-              {
-                "type": "maxmind",
-                "url": "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&suffix=zip",
-                "license_key": "",
-                "country_filter": ["RU"]
-              },
-              {
-                "type": "file",
-                "path": "custom-cidr.txt"
-              }
-            ],
-            "output": [
-              {
-                "type": "v2ray",
-                "path": "geoip.dat"
-              }
-            ]
-          }
-          EOF
+          cat russian-ipv4.txt russian-ipv6.txt custom-cidr.txt | sort -u > ru-final.txt
+
+      - name: Clone v2fly/geoip
+        run: |
+          rm -rf geoip
+          git clone https://github.com/v2fly/geoip.git
 
       - name: Build geoip.dat
         run: |
-          ./geoip-cli generate -c config.json -o geoip.dat
+          cd geoip
+          mkdir -p data
+          cp ../ru-final.txt data/RU
+          go run main.go
+          cd ..
+          cp geoip/geoip.dat .
 
       # ========== ПУБЛИКАЦИЯ ==========
       - name: Create Release and Upload Assets
@@ -112,7 +93,7 @@ jobs:
           body: |
             Автоматическая сборка.
             - geosite.dat: собран из ru-all, ads, torrent
-            - geoip.dat: собран из MaxMind + ваши кастомные IP (дубли удалены)
+            - geoip.dat: собран из российских сетей + ваши кастомные IP (дубли удалены)
           files: |
             geoip.dat
             geosite.dat
